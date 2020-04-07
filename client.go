@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // Client implements a Dropbox client. You may use the Files and Users
@@ -72,8 +75,39 @@ func (c *Client) download(path string, in interface{}, r io.Reader) (io.ReadClos
 
 // perform the request.
 func (c *Client) do(req *http.Request) (io.ReadCloser, int64, error) {
-	res, err := c.HTTPClient.Do(req)
+	var err error
+	var res *http.Response
+	error_retry_time := 0.5
+request_loop:
+	for error_retry_time < 300 {
+		res, err = c.HTTPClient.Do(req)
+		switch res.StatusCode {
+		case 429:
+			log.Printf("Received Retry status code %d.", res.StatusCode)
+			sleep_time, conv_e := strconv.Atoi(res.Header.Get("Retry-After"))
+			if conv_e != nil {
+				sleep_time = 60
+			}
+			log.Printf("Sleeping for %d seconds.", sleep_time)
+			time.Sleep(time.Duration(sleep_time) * time.Second)
+		case 500:
+			log.Printf("Received Error status code %d.", res.StatusCode)
+			log.Printf("Sleeping for %d seconds.", error_retry_time)
+			time.Sleep(time.Duration(error_retry_time) * time.Second)
+			error_retry_time *= 1.5
+		default:
+			break request_loop
+		}
+	}
 	if err != nil {
+		log.Printf("URL: %s - Method: %s", req.URL, req.Method)
+		log.Printf("HTTP Error StatusCode %d", res.StatusCode)
+		if b, err := ioutil.ReadAll(res.Body); err == nil {
+			log.Print(string(b))
+		} else {
+			log.Printf("Error reading body: %s", err)
+
+		}
 		return nil, 0, err
 	}
 
@@ -93,6 +127,9 @@ func (c *Client) do(req *http.Request) (io.ReadCloser, int64, error) {
 	if strings.Contains(kind, "text/plain") {
 		if b, err := ioutil.ReadAll(res.Body); err == nil {
 			e.Summary = string(b)
+			log.Printf("URL: %s - Method: %s", req.URL, req.Method)
+			log.Printf("HTTP StatusCode %d", res.StatusCode)
+			log.Print(e.Summary)
 			return nil, 0, e
 		} else {
 			return nil, 0, err
@@ -100,8 +137,13 @@ func (c *Client) do(req *http.Request) (io.ReadCloser, int64, error) {
 	}
 
 	if err := json.NewDecoder(res.Body).Decode(e); err != nil {
+		log.Printf("URL: %s - Method: %s", req.URL, req.Method)
+		log.Printf("HTTP StatusCode %d", res.StatusCode)
+		log.Print(e.Summary)
 		return nil, 0, err
 	}
-
+	log.Printf("URL: %s - Method: %s", req.URL, req.Method)
+	log.Printf("HTTP StatusCode %d", res.StatusCode)
+	log.Print(e.Summary)
 	return nil, 0, e
 }
