@@ -81,16 +81,16 @@ func (c *Client) do(req *http.Request) (io.ReadCloser, int64, error) {
 request_loop:
 	for error_retry_time < 300 {
 		res, err = c.HTTPClient.Do(req)
-		switch res.StatusCode {
-		case 429:
-			log.Printf("Received Retry status code %d.", res.StatusCode)
+		switch {
+		case res.StatusCode == 429:
+			log.Print("Received Retry status code %d.", res.StatusCode)
 			sleep_time, conv_e := strconv.Atoi(res.Header.Get("Retry-After"))
 			if conv_e != nil {
 				sleep_time = 60
 			}
 			log.Printf("Sleeping for %d seconds.", sleep_time)
 			time.Sleep(time.Duration(sleep_time) * time.Second)
-		case 500:
+		case res.StatusCode >= 500: // Retry on 5xx
 			log.Printf("Received Error status code %d.", res.StatusCode)
 			log.Printf("Sleeping for %d seconds.", error_retry_time)
 			time.Sleep(time.Duration(error_retry_time) * time.Second)
