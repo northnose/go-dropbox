@@ -2,6 +2,7 @@ package dropbox
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"time"
 )
 
@@ -54,6 +55,7 @@ func (c *Sharing) CreateSharedLink(in *CreateSharedLinkInput) (out *CreateShared
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
 	return

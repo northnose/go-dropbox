@@ -60,10 +60,10 @@ func (c *Files) GetMetadata(in *GetMetadataInput) (out *GetMetadataOutput, err e
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
 
-	ioutil.ReadAll(body)
 	return
 }
 
@@ -86,9 +86,9 @@ func (c *Files) CreateFolder(in *CreateFolderInput) (out *CreateFolderOutput, er
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
-	ioutil.ReadAll(body)
 	return
 }
 
@@ -109,9 +109,9 @@ func (c *Files) Delete(in *DeleteInput) (out *DeleteOutput, err error) {
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
-	ioutil.ReadAll(body)
 	return
 }
 
@@ -127,7 +127,7 @@ func (c *Files) PermanentlyDelete(in *PermanentlyDeleteInput) (err error) {
 		return
 	}
 	defer body.Close()
-	ioutil.ReadAll(body)
+	defer ioutil.ReadAll(body)
 
 	return
 }
@@ -150,9 +150,9 @@ func (c *Files) Copy(in *CopyInput) (out *CopyOutput, err error) {
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
-	ioutil.ReadAll(body)
 	return
 }
 
@@ -174,9 +174,9 @@ func (c *Files) Move(in *MoveInput) (out *MoveOutput, err error) {
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
-	ioutil.ReadAll(body)
 	return
 }
 
@@ -198,9 +198,9 @@ func (c *Files) Restore(in *RestoreInput) (out *RestoreOutput, err error) {
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
-	ioutil.ReadAll(body)
 	return
 }
 
@@ -228,9 +228,9 @@ func (c *Files) ListFolder(in *ListFolderInput) (out *ListFolderOutput, err erro
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
-	ioutil.ReadAll(body)
 	return
 }
 
@@ -246,9 +246,9 @@ func (c *Files) ListFolderContinue(in *ListFolderContinueInput) (out *ListFolder
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
-	ioutil.ReadAll(body)
 	return
 }
 
@@ -309,9 +309,9 @@ func (c *Files) Search(in *SearchInput) (out *SearchOutput, err error) {
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
-	ioutil.ReadAll(body)
 	return
 }
 
@@ -337,9 +337,9 @@ func (c *Files) Upload(in *UploadInput) (out *UploadOutput, err error) {
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
-	ioutil.ReadAll(body)
 	return
 }
 
@@ -459,9 +459,9 @@ func (c *Files) ListRevisions(in *ListRevisionsInput) (out *ListRevisionsOutput,
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
-	ioutil.ReadAll(body)
 	return
 }
 
