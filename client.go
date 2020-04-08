@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -83,16 +82,12 @@ request_loop:
 		res, err = c.HTTPClient.Do(req)
 		switch {
 		case res.StatusCode == 429:
-			log.Print("Received Retry status code %d.", res.StatusCode)
 			sleep_time, conv_e := strconv.Atoi(res.Header.Get("Retry-After"))
 			if conv_e != nil {
 				sleep_time = 60
 			}
-			log.Printf("Sleeping for %d seconds.", sleep_time)
 			time.Sleep(time.Duration(sleep_time) * time.Second)
 		case res.StatusCode >= 500: // Retry on 5xx
-			log.Printf("Received Error status code %d.", res.StatusCode)
-			log.Printf("Sleeping for %d seconds.", error_retry_time)
 			time.Sleep(time.Duration(error_retry_time) * time.Second)
 			error_retry_time *= 1.5
 		default:
@@ -100,14 +95,6 @@ request_loop:
 		}
 	}
 	if err != nil {
-		log.Printf("URL: %s - Method: %s", req.URL, req.Method)
-		log.Printf("HTTP Error StatusCode %d", res.StatusCode)
-		if b, err := ioutil.ReadAll(res.Body); err == nil {
-			log.Print(string(b))
-		} else {
-			log.Printf("Error reading body: %s", err)
-
-		}
 		return nil, 0, err
 	}
 
@@ -127,9 +114,6 @@ request_loop:
 	if strings.Contains(kind, "text/plain") {
 		if b, err := ioutil.ReadAll(res.Body); err == nil {
 			e.Summary = string(b)
-			log.Printf("URL: %s - Method: %s", req.URL, req.Method)
-			log.Printf("HTTP StatusCode %d", res.StatusCode)
-			log.Print(e.Summary)
 			return nil, 0, e
 		} else {
 			return nil, 0, err
@@ -137,13 +121,7 @@ request_loop:
 	}
 
 	if err := json.NewDecoder(res.Body).Decode(e); err != nil {
-		log.Printf("URL: %s - Method: %s", req.URL, req.Method)
-		log.Printf("HTTP StatusCode %d", res.StatusCode)
-		log.Print(e.Summary)
 		return nil, 0, err
 	}
-	log.Printf("URL: %s - Method: %s", req.URL, req.Method)
-	log.Printf("HTTP StatusCode %d", res.StatusCode)
-	log.Print(e.Summary)
 	return nil, 0, e
 }
