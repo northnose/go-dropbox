@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -81,16 +80,14 @@ func (c *Client) do(req *http.Request) (io.ReadCloser, int64, error) {
 request_loop:
 	for error_retry_time < 300 {
 		res, err = c.HTTPClient.Do(req)
-		switch res.StatusCode {
-		case 429:
+		switch {
+		case res.StatusCode == 429:
 			sleep_time, conv_e := strconv.Atoi(res.Header.Get("Retry-After"))
 			if conv_e != nil {
 				sleep_time = 60
 			}
-			log.Printf("[DROPBOX_RETRY] %s %s returned %d; retrying after %.2f seconds", req.Method, req.URL, res.StatusCode, sleep_time)
 			time.Sleep(time.Duration(sleep_time) * time.Second)
-		case 500:
-			log.Printf("[DROPBOX_RETRY] %s %s returned %d; retrying after %.2f seconds", req.Method, req.URL, res.StatusCode, error_retry_time)
+		case res.StatusCode >= 500: // Retry on 5xx
 			time.Sleep(time.Duration(error_retry_time) * time.Second)
 			error_retry_time *= 1.5
 		default:

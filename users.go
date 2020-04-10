@@ -2,6 +2,7 @@ package dropbox
 
 import (
 	"encoding/json"
+	"io/ioutil"
 )
 
 // Users client for user accounts.
@@ -41,6 +42,7 @@ func (c *Users) GetAccount(in *GetAccountInput) (out *GetAccountOutput, err erro
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
 	return
@@ -72,6 +74,7 @@ func (c *Users) GetCurrentAccount() (out *GetCurrentAccountOutput, err error) {
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
 	return
@@ -93,6 +96,7 @@ func (c *Users) GetSpaceUsage() (out *GetSpaceUsageOutput, err error) {
 		return
 	}
 	defer body.Close()
+	defer ioutil.ReadAll(body)
 
 	err = json.NewDecoder(body).Decode(&out)
 	return
