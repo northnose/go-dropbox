@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"log"
 )
 
 // Client implements a Dropbox client. You may use the Files and Users
@@ -38,19 +39,20 @@ func (c *Client) call(path string, in interface{}) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	reader := bytes.NewReader(body)
+	req, err := http.NewRequest("POST", url, reader)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.AccessToken)
 	req.Header.Set("Content-Type", "application/json")
 
-	r, _, err := c.do(req)
+	r, _, err := c.do(req, reader)
 	return r, err
 }
 
 // download style endpoint.
-func (c *Client) download(path string, in interface{}, r io.Reader) (io.ReadCloser, int64, error) {
+func (c *Client) download(path string, in interface{}, r io.ReadSeeker, contentLength int64) (io.ReadCloser, int64, error) {
 	url := "https://content.dropboxapi.com/2" + path
 
 	body, err := json.Marshal(in)
@@ -64,32 +66,45 @@ func (c *Client) download(path string, in interface{}, r io.Reader) (io.ReadClos
 	}
 	req.Header.Set("Authorization", "Bearer "+c.AccessToken)
 	req.Header.Set("Dropbox-API-Arg", string(body))
-
+        if contentLength != 0 {
+            req.ContentLength = contentLength
+        }
 	if r != nil {
 		req.Header.Set("Content-Type", "application/octet-stream")
 	}
 
-	return c.do(req)
+	return c.do(req, r)
 }
 
 // perform the request.
-func (c *Client) do(req *http.Request) (io.ReadCloser, int64, error) {
+func (c *Client) do(req *http.Request, seeker io.Seeker) (io.ReadCloser, int64, error) {
 	var err error
 	var res *http.Response
 	error_retry_time := 0.5
 request_loop:
 	for error_retry_time < 300 {
 		res, err = c.HTTPClient.Do(req)
+                if err != nil {
+			log.Printf("[DROPBOX_RETRY] %v; retrying after %.2f seconds", err, error_retry_time)
+			time.Sleep(time.Duration(error_retry_time) * time.Second)
+			error_retry_time *= 1.5
+			seeker.Seek(0, io.SeekStart)
+			continue
+                }
 		switch {
 		case res.StatusCode == 429:
+			log.Printf("[DROPBOX_RETRY] %s %s returned %d; retrying after %.2f seconds", req.Method, req.URL, res.StatusCode, error_retry_time)
 			sleep_time, conv_e := strconv.Atoi(res.Header.Get("Retry-After"))
 			if conv_e != nil {
 				sleep_time = 60
 			}
 			time.Sleep(time.Duration(sleep_time) * time.Second)
+			seeker.Seek(0, io.SeekStart)
 		case res.StatusCode >= 500: // Retry on 5xx
+			log.Printf("[DROPBOX_RETRY] %s %s returned %d; retrying after %.2f seconds", req.Method, req.URL, res.StatusCode, error_retry_time)
 			time.Sleep(time.Duration(error_retry_time) * time.Second)
 			error_retry_time *= 1.5
+			seeker.Seek(0, io.SeekStart)
 		default:
 			break request_loop
 		}

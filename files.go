@@ -322,7 +322,7 @@ type UploadInput struct {
 	AutoRename     bool      `json:"autorename"`
 	Mute           bool      `json:"mute"`
 	ClientModified time.Time `json:"client_modified,omitempty"`
-	Reader         io.Reader `json:"-"`
+	Reader         io.ReadSeeker `json:"-"`
 }
 
 // UploadOutput request output.
@@ -332,7 +332,9 @@ type UploadOutput struct {
 
 // Upload a file smaller than 150MB.
 func (c *Files) Upload(in *UploadInput) (out *UploadOutput, err error) {
-	body, _, err := c.download("/files/upload", in, in.Reader)
+        contentLength, _ := in.Reader.Seek(0, io.SeekEnd)
+        in.Reader.Seek(0, io.SeekStart)
+	body, _, err := c.download("/files/upload", in, in.Reader, contentLength)
 	if err != nil {
 		return
 	}
@@ -356,7 +358,7 @@ type DownloadOutput struct {
 
 // Download a file.
 func (c *Files) Download(in *DownloadInput) (out *DownloadOutput, err error) {
-	body, l, err := c.download("/files/download", in, nil)
+	body, l, err := c.download("/files/download", in, nil, 0)
 	if err != nil {
 		return
 	}
@@ -407,7 +409,7 @@ type GetThumbnailOutput struct {
 // GetThumbnail a thumbnail for a file. Currently thumbnails are only generated for the
 // files with the following extensions: png, jpeg, png, tiff, tif, gif and bmp.
 func (c *Files) GetThumbnail(in *GetThumbnailInput) (out *GetThumbnailOutput, err error) {
-	body, l, err := c.download("/files/get_thumbnail", in, nil)
+	body, l, err := c.download("/files/get_thumbnail", in, nil, 0)
 	if err != nil {
 		return
 	}
@@ -431,7 +433,7 @@ type GetPreviewOutput struct {
 // files with the following extensions: .doc, .docx, .docm, .ppt, .pps, .ppsx,
 // .ppsm, .pptx, .pptm, .xls, .xlsx, .xlsm, .rtf
 func (c *Files) GetPreview(in *GetPreviewInput) (out *GetPreviewOutput, err error) {
-	body, l, err := c.download("/files/get_preview", in, nil)
+	body, l, err := c.download("/files/get_preview", in, nil, 0)
 	if err != nil {
 		return
 	}
