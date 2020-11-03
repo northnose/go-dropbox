@@ -88,7 +88,9 @@ request_loop:
 			log.Printf("[DROPBOX_RETRY] %v; retrying after %.2f seconds", err, error_retry_time)
 			time.Sleep(time.Duration(error_retry_time) * time.Second)
 			error_retry_time *= 1.5
-			seeker.Seek(0, io.SeekStart)
+			if seeker != nil {
+				seeker.Seek(0, io.SeekStart)
+			}
 			continue
                 }
 		switch {
@@ -99,12 +101,16 @@ request_loop:
 				sleep_time = 60
 			}
 			time.Sleep(time.Duration(sleep_time) * time.Second)
-			seeker.Seek(0, io.SeekStart)
+			if seeker != nil {
+				seeker.Seek(0, io.SeekStart)
+			}
 		case res.StatusCode >= 500: // Retry on 5xx
 			log.Printf("[DROPBOX_RETRY] %s %s returned %d; retrying after %.2f seconds", req.Method, req.URL, res.StatusCode, error_retry_time)
 			time.Sleep(time.Duration(error_retry_time) * time.Second)
 			error_retry_time *= 1.5
-			seeker.Seek(0, io.SeekStart)
+			if seeker != nil {
+				seeker.Seek(0, io.SeekStart)
+			}
 		default:
 			break request_loop
 		}
