@@ -1,6 +1,7 @@
 package dropbox
 
 import (
+	"fmt"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -10,6 +11,9 @@ import (
 	"strings"
 	"time"
 	"log"
+	"sync"
+
+	"golang.org/x/oauth2"
 )
 
 // Client implements a Dropbox client. You may use the Files and Users
@@ -19,6 +23,9 @@ type Client struct {
 	Users   *Users
 	Files   *Files
 	Sharing *Sharing
+
+	Token     oauth2.Token
+	TokenLock sync.Mutex
 }
 
 // New client.
@@ -32,6 +39,15 @@ func New(config *Config) *Client {
 
 // call rpc style endpoint.
 func (c *Client) call(path string, in interface{}) (io.ReadCloser, error) {
+
+	var err error
+	if c.AccessToken == "" && c.RefreshToken != "" {
+		err = c.refreshToken()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	url := "https://api.dropboxapi.com/2" + path
 
 	body, err := json.Marshal(in)
@@ -53,6 +69,7 @@ func (c *Client) call(path string, in interface{}) (io.ReadCloser, error) {
 
 // download style endpoint.
 func (c *Client) download(path string, in interface{}, r io.ReadSeeker, contentLength int64) (io.ReadCloser, int64, error) {
+
 	url := "https://content.dropboxapi.com/2" + path
 
 	body, err := json.Marshal(in)
@@ -79,6 +96,7 @@ func (c *Client) download(path string, in interface{}, r io.ReadSeeker, contentL
 // perform the request.
 func (c *Client) do(req *http.Request, seeker io.Seeker) (io.ReadCloser, int64, error) {
 	var err error
+
 	var res *http.Response
 	error_retry_time := 0.5
 request_loop:
@@ -101,6 +119,17 @@ request_loop:
 				sleep_time = 60
 			}
 			time.Sleep(time.Duration(sleep_time) * time.Second)
+			if seeker != nil {
+				seeker.Seek(0, io.SeekStart)
+			}
+        case res.StatusCode == 401:
+			log.Printf("[DROPBOX_RETRY] %s %s returned %d; refreshing access token", req.Method, req.URL, res.StatusCode, error_retry_time)
+			err = c.refreshToken()
+			if err != nil {
+				log.Printf("[DROPBOX_RETRY] %s returned an error: %v", c.RefreshURL, err)
+				time.Sleep(time.Duration(error_retry_time) * time.Second)
+				error_retry_time *= 1.5
+			}
 			if seeker != nil {
 				seeker.Seek(0, io.SeekStart)
 			}
@@ -145,4 +174,46 @@ request_loop:
 		return nil, 0, err
 	}
 	return nil, 0, e
+}
+
+func (client *Client) refreshToken() (err error) {
+	if client.RefreshToken == "" {
+		return fmt.Errorf("No refresh token provided")
+	}
+
+	client.TokenLock.Lock()
+	defer client.TokenLock.Unlock()
+
+	if client.Token.Valid() {
+		return nil
+	}
+
+	client.Token.RefreshToken = client.RefreshToken
+	body, err := json.Marshal(client.Token)
+	if err != nil {
+		return err
+	}
+
+	request, err := http.NewRequest("POST", client.RefreshURL, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	response, err := client.HTTPClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to refresh the access token: %v", err)
+	}
+
+    defer response.Body.Close()
+	if err = json.NewDecoder(response.Body).Decode(&client.Token); err != nil {
+		return err
+	}
+
+	if client.Token.AccessToken == "" {
+		return fmt.Errorf("No access token returned")
+	}
+	client.AccessToken = client.Token.AccessToken
+
+	return nil
 }
