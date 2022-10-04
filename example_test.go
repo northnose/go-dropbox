@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/tj/go-dropbox"
+	"github.com/gilbertchen/go-dropbox"
 )
 
 // Example using the Client, which provides both User and File clients.
