@@ -188,6 +188,7 @@ func (client *Client) refreshToken() (err error) {
 		return nil
 	}
 
+	client.Token.AccessToken = ""
 	client.Token.RefreshToken = client.RefreshToken
 	body, err := json.Marshal(client.Token)
 	if err != nil {
