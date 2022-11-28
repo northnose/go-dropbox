@@ -125,6 +125,7 @@ request_loop:
         case res.StatusCode == 401:
 			log.Printf("[DROPBOX_RETRY] %s %s returned %d; refreshing access token", req.Method, req.URL, res.StatusCode, error_retry_time)
 			err = c.refreshToken()
+			req.Header.Set("Authorization", "Bearer "+c.AccessToken)
 			if err != nil {
 				log.Printf("[DROPBOX_RETRY] %s returned an error: %v", c.RefreshURL, err)
 				time.Sleep(time.Duration(error_retry_time) * time.Second)
@@ -188,6 +189,7 @@ func (client *Client) refreshToken() (err error) {
 		return nil
 	}
 
+	client.Token.AccessToken = ""
 	client.Token.RefreshToken = client.RefreshToken
 	body, err := json.Marshal(client.Token)
 	if err != nil {
@@ -213,6 +215,7 @@ func (client *Client) refreshToken() (err error) {
 	if client.Token.AccessToken == "" {
 		return fmt.Errorf("No access token returned")
 	}
+	
 	client.AccessToken = client.Token.AccessToken
 
 	return nil
