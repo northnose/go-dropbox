@@ -123,7 +123,7 @@ request_loop:
 				seeker.Seek(0, io.SeekStart)
 			}
         case res.StatusCode == 401:
-			log.Printf("[DROPBOX_RETRY] %s %s returned %d; refreshing access token", req.Method, req.URL, res.StatusCode, error_retry_time)
+			log.Printf("[DROPBOX_RETRY] %s %s returned %d; refreshing access token", req.Method, req.URL, res.StatusCode)
 			err = c.refreshToken()
 			req.Header.Set("Authorization", "Bearer "+c.AccessToken)
 			if err != nil {
