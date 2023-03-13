@@ -101,8 +101,13 @@ func (c *Client) do(req *http.Request, seeker io.Seeker) (io.ReadCloser, int64, 
 	error_retry_time := 0.5
 request_loop:
 	for error_retry_time < 300 {
+		if res != nil && err == nil {
+			// be sure to close the response before retrying
+			ioutil.ReadAll(res.Body)
+			res.Body.Close()
+		}
 		res, err = c.HTTPClient.Do(req)
-                if err != nil {
+		if err != nil {
 			log.Printf("[DROPBOX_RETRY] %v; retrying after %.2f seconds", err, error_retry_time)
 			time.Sleep(time.Duration(error_retry_time) * time.Second)
 			error_retry_time *= 1.5
@@ -110,19 +115,20 @@ request_loop:
 				seeker.Seek(0, io.SeekStart)
 			}
 			continue
-                }
+		}
+
 		switch {
 		case res.StatusCode == 429:
-			log.Printf("[DROPBOX_RETRY] %s %s returned %d; retrying after %.2f seconds", req.Method, req.URL, res.StatusCode, error_retry_time)
 			sleep_time, conv_e := strconv.Atoi(res.Header.Get("Retry-After"))
 			if conv_e != nil {
 				sleep_time = 60
 			}
+			log.Printf("[DROPBOX_RETRY] %s %s returned %d; retrying after %d seconds", req.Method, req.URL, res.StatusCode, sleep_time)
 			time.Sleep(time.Duration(sleep_time) * time.Second)
 			if seeker != nil {
 				seeker.Seek(0, io.SeekStart)
 			}
-        case res.StatusCode == 401:
+		case res.StatusCode == 401:
 			log.Printf("[DROPBOX_RETRY] %s %s returned %d; refreshing access token", req.Method, req.URL, res.StatusCode)
 			err = c.refreshToken()
 			req.Header.Set("Authorization", "Bearer "+c.AccessToken)
